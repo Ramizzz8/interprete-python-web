@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Intérprete Python</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #0b1222;
+        --panel-header: #111a2e;
+        --code-bg: #020617;
+        --accent: #22c55e;
+        --accent-soft: rgba(34, 197, 94, 0.14);
+        --warn: #facc15;
+        --danger: #f87171;
+        --border: #1e293b;
+        --text: #e5e7eb;
+        --muted: #8b95a7;
+        --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: radial-gradient(circle at 20% 0%, #1e293b 0, #020617 60%);
+        color: var(--text);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 24px 16px;
+      }
+
+      .app {
+        width: 100%;
+        max-width: 1080px;
+        background: rgba(15, 23, 42, 0.85);
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 30px 80px rgba(2, 6, 23, 0.8);
+        padding: 20px 22px;
+        backdrop-filter: blur(18px);
+      }
+
+      /* Cabecera */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+
+      .title-group {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #22c55e, #0ea5e9);
+        font-family: var(--mono);
+        font-weight: 700;
+        color: #020617;
+      }
+
+      h1 {
+        font-size: 18px;
+        margin: 0;
+        font-weight: 700;
+      }
+
+      .subtitle {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      select,
+      .btn-ghost {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      select:hover,
+      .btn-ghost:hover {
+        border-color: #334155;
+      }
+
+      /* Paneles */
+      .panels {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 14px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 420px;
+      }
+
+      .panel-header {
+        background: var(--panel-header);
+        padding: 9px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .panel-title {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .badge {
+        font-size: 11px;
+        padding: 2px 9px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-family: var(--mono);
+      }
+
+      /* Editor con números de línea */
+      .editor-wrap {
+        flex: 1;
+        display: flex;
+        background: var(--code-bg);
+        font-family: var(--mono);
+        font-size: 13.5px;
+        line-height: 1.6;
+      }
+
+      #lineas {
+        padding: 12px 10px 12px 14px;
+        color: #334155;
+        text-align: right;
+        user-select: none;
+        white-space: pre;
+        overflow: hidden;
+        border-right: 1px solid var(--border);
+        min-width: 44px;
+      }
+
+      #editor {
+        flex: 1;
+        border: none;
+        resize: none;
+        padding: 12px 14px;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        line-height: inherit;
+        outline: none;
+        white-space: pre;
+        overflow: auto;
+        tab-size: 4;
+      }
+
+      .hint {
+        font-size: 11px;
+        color: var(--muted);
+        padding: 8px 14px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      kbd {
+        background: var(--panel-header);
+        padding: 1px 5px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+
+      /* Terminal */
+      #salida {
+        flex: 1;
+        margin: 0;
+        padding: 12px 14px;
+        background: var(--code-bg);
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-y: auto;
+        max-height: 280px;
+      }
+
+      #salida.error {
+        color: var(--danger);
+      }
+
+      .estado {
+        font-size: 11px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        border-top: 1px solid var(--border);
+      }
+
+      .estado-izq {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .punto {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-soft);
+        transition: background 0.2s;
+      }
+
+      .punto.ejecutando {
+        background: var(--warn);
+        box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.15);
+        animation: latido 0.8s infinite alternate;
+      }
+
+      .punto.error {
+        background: var(--danger);
+        box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.15);
+      }
+
+      @keyframes latido {
+        to {
+          opacity: 0.4;
+        }
+      }
+
+      .stdin-wrap {
+        padding: 10px 14px 14px;
+        border-top: 1px solid var(--border);
+      }
+
+      .stdin-label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      #stdin {
+        width: 100%;
+        border: 1px solid var(--border);
+        resize: vertical;
+        border-radius: 8px;
+        padding: 8px 10px;
+        background: var(--code-bg);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 12.5px;
+        line-height: 1.5;
+        outline: none;
+      }
+
+      #stdin:focus,
+      .editor-wrap:focus-within {
+        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.4);
+      }
+
+      /* Barra inferior */
+      .footer-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 16px;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .btn-main {
+        padding: 10px 22px;
+        border-radius: 999px;
+        border: none;
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: white;
+        font: inherit;
+        font-weight: 600;
+        font-size: 13px;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 12px 30px rgba(34, 197, 94, 0.3);
+        transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      }
+
+      .btn-main:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 34px rgba(34, 197, 94, 0.4);
+      }
+
+      .btn-main:disabled {
+        opacity: 0.6;
+        cursor: wait;
+        transform: none;
+      }
+
+      .footer-info {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .footer-info code {
+        color: var(--accent);
+        font-family: var(--mono);
+      }
+
+      @media (max-width: 820px) {
+        .panels {
+          grid-template-columns: 1fr;
+        }
+        .panel {
+          min-height: 320px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="title-group">
+          <div class="logo">&gt;_</div>
+          <div>
+            <h1>Intérprete Python</h1>
+            <div class="subtitle">Escribe, ejecuta y prueba código Python desde el navegador</div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <select id="ejemplos" aria-label="Cargar ejemplo">
+            <option value="">Cargar ejemplo…</option>
+          </select>
+          <button class="btn-ghost" id="limpiar" type="button">Limpiar salida</button>
+        </div>
+      </header>
+
+      <main class="panels">
+        <!-- Editor -->
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Editor</div>
+            <div class="badge">main.py</div>
+          </div>
+          <div class="editor-wrap">
+            <div id="lineas" aria-hidden="true">1</div>
+            <textarea id="editor" spellcheck="false" aria-label="Código Python"></textarea>
+          </div>
+          <div class="hint">
+            <span><kbd>Tab</kbd> sangría · <kbd>Ctrl</kbd> + <kbd>Enter</kbd> ejecutar</span>
+            <span id="contador">0 líneas</span>
+          </div>
+        </section>
+
+        <!-- Terminal -->
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Terminal</div>
+            <div class="badge" id="tiempo">— ms</div>
+          </div>
+          <pre id="salida">$ Listo. La salida aparecerá aquí.</pre>
+          <div class="estado">
+            <div class="estado-izq">
+              <div class="punto" id="punto"></div>
+              <span id="estado-texto">Inactivo</span>
+            </div>
+            <span>stdout + stderr</span>
+          </div>
+          <div class="stdin-wrap">
+            <div class="stdin-label">Entradas (stdin) — una línea por cada <code>input()</code></div>
+            <textarea id="stdin" rows="3" placeholder="Andrés&#10;25"></textarea>
+          </div>
+        </section>
+      </main>
+
+      <div class="footer-bar">
+        <button id="ejecutar" class="btn-main" type="button">▶ Ejecutar programa</button>
+        <div class="footer-info">
+          Cada ejecución corre en un proceso aislado con límite de <code>5 s</code>.
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const EJEMPLOS = {
+        'Saludo con input()': {
+          code: 'nombre = input("¿Cómo te llamas? ")\nedad = int(input("¿Cuántos años tienes? "))\n\nprint()\nprint(f"Hola, {nombre} 👋")\nprint(f"El año que viene tendrás {edad + 1} años.")',
+          stdin: 'Andrés\n25',
+        },
+        'Fibonacci': {
+          code: 'def fibonacci(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n\nprint(list(fibonacci(15)))',
+          stdin: '',
+        },
+        'FizzBuzz': {
+          code: 'for i in range(1, 21):\n    if i % 15 == 0:\n        print("FizzBuzz")\n    elif i % 3 == 0:\n        print("Fizz")\n    elif i % 5 == 0:\n        print("Buzz")\n    else:\n        print(i)',
+          stdin: '',
+        },
+        'Clases y herencia': {
+          code: 'class Animal:\n    def __init__(self, nombre):\n        self.nombre = nombre\n\n    def hablar(self):\n        return "..."\n\nclass Perro(Animal):\n    def hablar(self):\n        return "¡Guau!"\n\nclass Gato(Animal):\n    def hablar(self):\n        return "¡Miau!"\n\nfor animal in [Perro("Toby"), Gato("Luna")]:\n    print(f"{animal.nombre}: {animal.hablar()}")',
+          stdin: '',
+        },
+        'Error a propósito': {
+          code: 'numeros = [1, 2, 3]\nprint(numeros[10])',
+          stdin: '',
+        },
+        'Bucle infinito (límite de tiempo)': {
+          code: 'while True:\n    pass',
+          stdin: '',
+        },
+      };
+
+      const editor = document.querySelector('#editor');
+      const lineas = document.querySelector('#lineas');
+      const contador = document.querySelector('#contador');
+      const stdin = document.querySelector('#stdin');
+      const salida = document.querySelector('#salida');
+      const punto = document.querySelector('#punto');
+      const estadoTexto = document.querySelector('#estado-texto');
+      const tiempo = document.querySelector('#tiempo');
+      const botonEjecutar = document.querySelector('#ejecutar');
+      const selectorEjemplos = document.querySelector('#ejemplos');
+
+      // Rellena el selector de ejemplos
+      Object.keys(EJEMPLOS).forEach((nombre) => {
+        const opcion = document.createElement('option');
+        opcion.value = nombre;
+        opcion.textContent = nombre;
+        selectorEjemplos.appendChild(opcion);
+      });
+
+      function cargarEjemplo(nombre) {
+        editor.value = EJEMPLOS[nombre].code;
+        stdin.value = EJEMPLOS[nombre].stdin;
+        actualizarLineas();
+      }
+
+      // Números de línea sincronizados con el editor
+      function actualizarLineas() {
+        const total = editor.value.split('\n').length;
+        lineas.textContent = Array.from({ length: total }, (_, i) => i + 1).join('\n');
+        contador.textContent = `${total} ${total === 1 ? 'línea' : 'líneas'}`;
+      }
+
+      editor.addEventListener('input', actualizarLineas);
+      editor.addEventListener('scroll', () => {
+        lineas.scrollTop = editor.scrollTop;
+      });
+
+      // Tab inserta 4 espacios en lugar de cambiar el foco
+      editor.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const { selectionStart: ini, selectionEnd: fin } = editor;
+          editor.setRangeText('    ', ini, fin, 'end');
+          actualizarLineas();
+        }
+      });
+
+      function setEstado(clase, texto) {
+        punto.className = 'punto ' + clase;
+        estadoTexto.textContent = texto;
+      }
+
+      async function ejecutar() {
+        botonEjecutar.disabled = true;
+        setEstado('ejecutando', 'Ejecutando…');
+        salida.classList.remove('error');
+
+        try {
+          const respuesta = await fetch('/api/ejecutar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: editor.value, inputs: stdin.value }),
+          });
+          const datos = await respuesta.json();
+          salida.textContent = datos.salida;
+          salida.classList.toggle('error', !datos.ok);
+          tiempo.textContent = `${datos.tiempo} ms`;
+          setEstado(datos.ok ? '' : 'error', datos.ok ? 'Ejecución completada' : 'Terminó con errores');
+        } catch (err) {
+          salida.textContent = 'No se pudo conectar con el servidor.\n' + err.message;
+          salida.classList.add('error');
+          setEstado('error', 'Sin conexión');
+        } finally {
+          botonEjecutar.disabled = false;
+        }
+      }
+
+      botonEjecutar.addEventListener('click', ejecutar);
+      selectorEjemplos.addEventListener('change', () => {
+        if (selectorEjemplos.value) cargarEjemplo(selectorEjemplos.value);
+        selectorEjemplos.value = '';
+      });
+      document.querySelector('#limpiar').addEventListener('click', () => {
+        salida.textContent = '$ Listo. La salida aparecerá aquí.';
+        salida.classList.remove('error');
+        tiempo.textContent = '— ms';
+        setEstado('', 'Inactivo');
+      });
+
+      // Ctrl+Enter ejecuta desde cualquier sitio
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          ejecutar();
+        }
+      });
+
+      cargarEjemplo('Saludo con input()');
+    </script>
+  </body>
+</html>
